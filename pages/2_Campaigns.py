@@ -1,12 +1,12 @@
 import pandas as pd
 import streamlit as st
 from sqlalchemy import select
-from src.database import init_db, get_session
+from src.database import get_session
 from src.models import Campaign, Prospect
-from src.ui import page_header
+from src.ui import page_header, require_database
 
 st.set_page_config(page_title="Campaigns | Outreach Studio", layout="wide")
-init_db()
+require_database()
 page_header("Campaigns", "Define campaign context before drafting messages.")
 
 with st.form("create_campaign", clear_on_submit=True):

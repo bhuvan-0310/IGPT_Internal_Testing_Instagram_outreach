@@ -1,0 +1,8 @@
+[server]
+maxUploadSize = 25
+# Keep this app local-only; do not expose it to the network by default.
+address = "localhost"
+headless = true
+
+[browser]
+gatherUsageStats = false

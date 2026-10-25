@@ -21,3 +21,10 @@ venv/
 # Logs and local databases
 *.log
 *.sqlite3
+
+# Local runtime data: uploaded assets, generated audio, and the dedicated
+# browser profile (which holds session cookies). Never commit these.
+data/
+
+# Test artifacts
+.pytest_cache/

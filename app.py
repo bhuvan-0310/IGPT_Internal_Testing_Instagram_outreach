@@ -1,15 +1,15 @@
 import streamlit as st
 from sqlalchemy import select, func
-from src.database import init_db, get_session
+from src.database import get_session
 from src.models import Prospect, Campaign
-from src.ui import page_header
+from src.ui import page_header, require_database
 
 st.set_page_config(page_title="Instagram Outreach Studio", page_icon="✉️", layout="wide")
-init_db()
+require_database()
 
 st.title("Instagram Outreach Studio")
 st.caption("Local-first workspace for prospect data, campaign preparation, and human-reviewed outreach.")
-st.info("Phase 1 foundation is active. AI drafting, voice tools, and the supervised browser workspace are scaffolded for subsequent phases.")
+st.info("Prospects, campaigns, AI-assisted drafting, voice assets, the asset library, outreach tracking, and the supervised browser workspace are all active. Set OPENAI_API_KEY in .env to enable AI drafting and voice generation.")
 
 with get_session() as session:
     prospect_count = session.scalar(select(func.count()).select_from(Prospect)) or 0

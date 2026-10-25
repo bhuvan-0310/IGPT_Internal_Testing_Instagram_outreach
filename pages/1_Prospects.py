@@ -2,12 +2,13 @@ import json
 import pandas as pd
 import streamlit as st
 from sqlalchemy import select, or_
-from src.database import init_db, get_session
+from src.database import get_session
 from src.models import Prospect, Campaign
-from src.ui import page_header
+from src.services import prospects as prospects_service
+from src.ui import page_header, require_database
 
 st.set_page_config(page_title="Prospects | Outreach Studio", layout="wide")
-init_db()
+require_database()
 page_header("Prospects", "Import and manage prospect records. Review imported data before using it in a campaign.")
 
 uploaded = st.file_uploader("Import Apify export, CSV, or Excel", type=["csv", "xlsx", "xls"])
@@ -17,10 +18,7 @@ if uploaded:
         st.write("Preview")
         st.dataframe(df.head(20), use_container_width=True)
         cols = list(df.columns)
-        def pick(label, candidates):
-            match = next((c for c in cols if c.lower().strip() in candidates), None)
-            return match
-        username_guess = pick("username", {"username", "user_name", "handle", "instagram_username", "ownerusername"})
+        username_guess = prospects_service.guess_username_column(cols)
         username_col = st.selectbox("Column containing Instagram username (required)", cols, index=cols.index(username_guess) if username_guess in cols else 0)
         display_col = st.selectbox("Display name column (optional)", ["— None —"] + cols)
         profile_col = st.selectbox("Profile URL column (optional)", ["— None —"] + cols)
@@ -29,42 +27,13 @@ if uploaded:
         reel_col = st.selectbox("Source Reel URL column (optional)", ["— None —"] + cols)
         text_col = st.selectbox("Source comment/text column (optional)", ["— None —"] + cols)
         if st.button("Import rows", type="primary"):
-            imported = skipped = 0
             with get_session() as session:
-                existing = {p.normalized_username for p in session.scalars(select(Prospect)).all()}
-                for _, row in df.iterrows():
-                    username = str(row.get(username_col, "")).strip().lstrip("@")
-                    if not username or username.lower() in {"nan", "none"}:
-                        skipped += 1
-                        continue
-                    normalized = username.lower()
-                    if normalized in existing:
-                        skipped += 1
-                        continue
-                    def value(col):
-                        if col == "— None —":
-                            return None
-                        v = row.get(col)
-                        return None if pd.isna(v) else str(v).strip()
-                    profile = value(profile_col)
-                    if not profile:
-                        profile = f"https://www.instagram.com/{username}/"
-                    raw = {}
-                    for k, v in row.items():
-                        try:
-                            raw[str(k)] = None if pd.isna(v) else str(v)
-                        except (TypeError, ValueError):
-                            raw[str(k)] = str(v)
-                    session.add(Prospect(
-                        username=username, normalized_username=normalized,
-                        source_id=value(source_id_col), source_platform="import",
-                        profile_url=profile, display_name=value(display_col), bio=value(bio_col),
-                        source_reel_url=value(reel_col), source_text=value(text_col),
-                        raw_data=raw, status="New"
-                    ))
-                    existing.add(normalized)
-                    imported += 1
-            st.success(f"Import complete. Added {imported}; skipped blank/duplicate rows {skipped}.")
+                result = prospects_service.import_dataframe(
+                    session, df, username_col=username_col, display_col=display_col,
+                    profile_col=profile_col, source_id_col=source_id_col, bio_col=bio_col,
+                    reel_col=reel_col, text_col=text_col,
+                )
+            st.success(f"Import complete. Added {result.imported}; skipped blank/duplicate rows {result.skipped}.")
     except Exception as e:
         st.error(f"Could not read this file: {e}")
 
