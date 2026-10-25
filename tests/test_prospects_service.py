@@ -1,5 +1,6 @@
 import pandas as pd
-from src.models import Prospect
+import pytest
+from src.models import Campaign, Prospect
 from src.services import prospects as prospects_service
 
 
@@ -51,3 +52,26 @@ def test_import_dataframe_strips_leading_at_sign(db_session):
     prospects_service.import_dataframe(db_session, df, username_col="username")
     prospect = db_session.query(Prospect).filter_by(normalized_username="eve").one()
     assert prospect.username == "eve"
+
+
+def test_assign_campaign_updates_only_selected_prospects(db_session):
+    campaign = Campaign(name="AI course", status="Active")
+    selected = Prospect(username="alice", normalized_username="alice", status="New")
+    unselected = Prospect(username="bob", normalized_username="bob", status="New")
+    db_session.add_all([campaign, selected, unselected])
+    db_session.flush()
+
+    updated = prospects_service.assign_campaign(db_session, [selected.id], campaign.id)
+
+    assert updated == 1
+    assert selected.campaign_id == campaign.id
+    assert unselected.campaign_id is None
+
+
+def test_assign_campaign_rejects_unknown_campaign(db_session):
+    prospect = Prospect(username="alice", normalized_username="alice", status="New")
+    db_session.add(prospect)
+    db_session.flush()
+
+    with pytest.raises(ValueError, match="does not exist"):
+        prospects_service.assign_campaign(db_session, [prospect.id], campaign_id=999)

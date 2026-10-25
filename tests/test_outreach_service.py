@@ -16,10 +16,12 @@ def campaign_and_prospect(db_session):
 
 def test_record_event_updates_prospect_status_and_writes_audit(db_session, campaign_and_prospect):
     campaign, prospect = campaign_and_prospect
+    assert prospect.campaign_id is None
     outreach_service.record_event(
         db_session, prospect, campaign.id, contact_method="Instagram DM", response_status="No response",
     )
     assert prospect.status == "Contacted"
+    assert prospect.campaign_id == campaign.id
     audit = db_session.query(AuditEvent).filter_by(entity_type="prospect", entity_id=prospect.id).all()
     assert len(audit) == 1
     assert "outreach" in audit[0].event_type

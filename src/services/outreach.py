@@ -40,6 +40,10 @@ def record_event(
         outcome=outcome, notes=notes, error_details=error_details,
     )
     session.add(event)
+    # An outreach event is always performed in the selected campaign. Keep the
+    # prospect's current campaign in sync so the Prospects view can show it and
+    # users can filter the prospect from that campaign later.
+    prospect.campaign_id = campaign_id
     prospect.status = "Contacted" if response_status == "No response" else (
         "Replied" if response_status in {"Replied", "Positive", "Negative"} else prospect.status
     )

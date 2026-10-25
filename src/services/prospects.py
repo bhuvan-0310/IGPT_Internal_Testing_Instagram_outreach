@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from src.models import Prospect
+from src.models import Campaign, Prospect
 
 COLUMN_GUESSES = {
     "username": {"username", "user_name", "handle", "instagram_username", "ownerusername"},
@@ -14,6 +14,26 @@ COLUMN_GUESSES = {
 class ImportResult:
     imported: int
     skipped: int
+
+
+def assign_campaign(session: Session, prospect_ids: list[int], campaign_id: int) -> int:
+    """Assign the selected prospects to one existing campaign.
+
+    Returns the number of prospect records updated. The caller supplies the
+    visible/selected IDs, but this function only updates rows that actually
+    exist in the current database session.
+    """
+    unique_ids = list(dict.fromkeys(prospect_ids))
+    if not unique_ids:
+        return 0
+    if session.get(Campaign, campaign_id) is None:
+        raise ValueError("The selected campaign does not exist.")
+
+    prospects = session.scalars(select(Prospect).where(Prospect.id.in_(unique_ids))).all()
+    for prospect in prospects:
+        prospect.campaign_id = campaign_id
+    session.flush()
+    return len(prospects)
 
 
 def guess_username_column(columns: list[str]) -> str | None:
