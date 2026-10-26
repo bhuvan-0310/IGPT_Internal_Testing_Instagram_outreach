@@ -66,6 +66,60 @@ DEFAULT_RULES = [
     },
 ]
 
+MARKETING_COURSE_PROFILE_NAME = "Marketing - AI/ML/LLM Course"
+
+MARKETING_COURSE_RULES = [
+    {
+        "name": "Marketing-first course positioning",
+        "instructions": (
+            "Use a confident, energetic, direct-response marketing tone that still sounds human. "
+            "Position the offer as an AI, machine learning, and large language models course only when "
+            "that is supported by the campaign context."
+        ),
+        "priority": 1,
+    },
+    {
+        "name": "Strong opening hook",
+        "instructions": (
+            "Open with a concise attention-grabbing benefit, challenge, or career-relevance hook. "
+            "Avoid generic greetings and do not use clickbait or exaggerated claims."
+        ),
+        "priority": 2,
+    },
+    {
+        "name": "Practical value framing",
+        "instructions": (
+            "Highlight practical learning outcomes such as understanding AI, ML, and LLM concepts or "
+            "building relevant projects, but only when those outcomes are stated in the campaign context."
+        ),
+        "priority": 2,
+    },
+    {
+        "name": "Clear course call to action",
+        "instructions": (
+            "End with one direct, easy next step. For this course campaign, invite the prospect to reply "
+            "COURSE to receive details, unless the campaign specifies a different call to action."
+        ),
+        "priority": 3,
+    },
+    {
+        "name": "Credible and respectful selling",
+        "instructions": (
+            "Do not promise jobs, income, limited places, expert instruction, or results unless explicitly "
+            "provided in the campaign. Avoid pressure tactics, false urgency, and manipulative language."
+        ),
+        "priority": 1,
+    },
+    {
+        "name": "Instagram DM readability",
+        "instructions": (
+            "Keep the message concise, scannable, and natural for an Instagram DM. Use short sentences and "
+            "avoid dense lists, excessive emojis, hashtags, or formal sales jargon."
+        ),
+        "priority": 4,
+    },
+]
+
 
 def seed_default_profile(session: Session) -> SkillProfile:
     """Create the built-in 'Default' skill profile with default rules if it
@@ -77,6 +131,29 @@ def seed_default_profile(session: Session) -> SkillProfile:
     session.add(profile)
     session.flush()
     for rule in DEFAULT_RULES:
+        session.add(SkillRule(profile_id=profile.id, enabled=True, **rule))
+    session.flush()
+    return profile
+
+
+def seed_marketing_course_profile(session: Session) -> SkillProfile:
+    """Create the editable AI/ML/LLM course marketing preset if needed."""
+    existing = session.scalar(
+        select(SkillProfile).where(SkillProfile.name == MARKETING_COURSE_PROFILE_NAME)
+    )
+    if existing:
+        return existing
+
+    profile = SkillProfile(
+        name=MARKETING_COURSE_PROFILE_NAME,
+        description=(
+            "Marketing skills for concise Instagram messages promoting an AI, machine learning, "
+            "and large language models course."
+        ),
+    )
+    session.add(profile)
+    session.flush()
+    for rule in MARKETING_COURSE_RULES:
         session.add(SkillRule(profile_id=profile.id, enabled=True, **rule))
     session.flush()
     return profile

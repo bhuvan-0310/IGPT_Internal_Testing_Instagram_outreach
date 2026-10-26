@@ -19,6 +19,17 @@ def test_default_profile_has_enabled_rules(db_session):
     assert all(r.enabled for r in profile.rules)
 
 
+def test_marketing_course_profile_is_seeded_once_with_enabled_skills(db_session):
+    first = skills_service.seed_marketing_course_profile(db_session)
+    db_session.commit()
+    second = skills_service.seed_marketing_course_profile(db_session)
+
+    assert first.id == second.id
+    assert first.name == skills_service.MARKETING_COURSE_PROFILE_NAME
+    assert len(first.rules) == len(skills_service.MARKETING_COURSE_RULES)
+    assert all(rule.enabled for rule in first.rules)
+
+
 def test_duplicate_profile_copies_rules_and_rejects_name_collision(db_session):
     source = skills_service.seed_default_profile(db_session)
     db_session.commit()

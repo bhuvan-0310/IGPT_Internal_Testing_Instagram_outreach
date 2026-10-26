@@ -17,10 +17,14 @@ def generate_variants(
     language: str,
     length_preset: str,
     variant_count: int,
+    skill_rule_ids: list[int] | None = None,
 ) -> list[MessageDraft]:
     """Generate `variant_count` new drafts (version 1, variant labels A, B, C...)
     for this prospect/campaign and persist them as Draft status."""
     rules = skill_profile.rules if skill_profile else []
+    if skill_rule_ids is not None:
+        selected_ids = set(skill_rule_ids)
+        rules = [rule for rule in rules if rule.id in selected_ids]
     request = DraftRequest(
         prospect=prospect, campaign=campaign, rules=rules,
         tone=tone, language=language, length_preset=length_preset, variant_count=variant_count,

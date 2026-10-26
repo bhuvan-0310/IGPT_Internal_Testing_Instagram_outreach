@@ -13,6 +13,7 @@ nothing else automatically:
   then lets them confirm, afterwards, that they did it.
 """
 from pathlib import Path
+from urllib.parse import urlparse
 from src.config import BROWSER_PROFILE_DIR
 
 _context = None
@@ -61,11 +62,28 @@ def launch_dedicated_browser():
 
 def open_url(url: str):
     """Open a URL in a new tab of the dedicated browser context. The caller
-    is responsible for validating the URL before calling this."""
-    context = launch_dedicated_browser()
-    page = context.new_page()
-    page.goto(url)
-    return page
+    is responsible for validating the URL before calling this.
+
+    A user can close the visible browser window while Streamlit still holds a
+    reference to its context. In that case, discard the stale connection and
+    make one fresh launch attempt instead of surfacing a Playwright traceback.
+    """
+    for attempt in range(2):
+        try:
+            context = launch_dedicated_browser()
+            page = context.new_page()
+            page.goto(url, wait_until="domcontentloaded")
+            return page
+        except BrowserLaunchError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - normalize Playwright connection failures for the UI
+            close_dedicated_browser()
+            if attempt == 0:
+                continue
+            raise BrowserLaunchError(
+                "Could not open the dedicated browser. Close any existing dedicated browser window "
+                "and try again."
+            ) from exc
 
 
 def close_dedicated_browser():
@@ -91,3 +109,18 @@ def is_safe_instagram_or_source_url(url: str) -> bool:
     non-http(s) schemes (javascript:, file:, data:, etc.)."""
     url = (url or "").strip()
     return url.startswith("http://") or url.startswith("https://")
+
+
+def profile_url_for(username: str, stored_url: str | None) -> str:
+    """Return a canonical Instagram profile URL for a prospect.
+
+    Imports sometimes map an avatar/image CDN URL into the profile URL field.
+    Such URLs do not lead to a prospect's profile, so only first-party
+    instagram.com profile URLs are used; all other values fall back to the
+    prospect's username.
+    """
+    url = (stored_url or "").strip()
+    hostname = (urlparse(url).hostname or "").lower()
+    if hostname in {"instagram.com", "www.instagram.com"}:
+        return url
+    return f"https://www.instagram.com/{username.strip().lstrip('@')}/"

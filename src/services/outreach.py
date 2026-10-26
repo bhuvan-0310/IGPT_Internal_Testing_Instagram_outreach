@@ -67,3 +67,21 @@ def set_do_not_contact(session: Session, prospect: Prospect, reason: str | None 
 def history_for(session: Session, prospect_id: int) -> list[OutreachEvent]:
     stmt = select(OutreachEvent).where(OutreachEvent.prospect_id == prospect_id).order_by(OutreachEvent.contact_date.desc())
     return list(session.scalars(stmt).all())
+
+
+def completed_prospect_ids(
+    session: Session, campaign_id: int, contact_methods: list[str]
+) -> set[int]:
+    """Return prospects with a recorded manual completion for this campaign.
+
+    The Browser Workspace uses this to show campaign progress. It never
+    performs outreach; an ID appears here only after the user records an
+    action they already completed manually.
+    """
+    if not contact_methods:
+        return set()
+    stmt = select(OutreachEvent.prospect_id).where(
+        OutreachEvent.campaign_id == campaign_id,
+        OutreachEvent.contact_method.in_(contact_methods),
+    ).distinct()
+    return set(session.scalars(stmt).all())

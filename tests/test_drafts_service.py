@@ -33,6 +33,27 @@ def test_generate_variants_creates_persisted_drafts(db_session, campaign_and_pro
     assert [d.content for d in created] == ["Hi there!", "Hello!", "Hey!"]
 
 
+def test_generate_variants_uses_only_selected_skills(db_session, campaign_and_prospect, monkeypatch):
+    campaign, prospect = campaign_and_prospect
+    profile = skills_service.seed_default_profile(db_session)
+    selected_rule = profile.rules[0]
+    captured = {}
+
+    def fake_generate_text(system_prompt, user_prompt, model=None):
+        captured["system_prompt"] = system_prompt
+        return "Tailored message"
+
+    monkeypatch.setattr(drafts_service, "generate_text", fake_generate_text)
+    drafts_service.generate_variants(
+        db_session, prospect, campaign, profile,
+        tone="friendly", language="English", length_preset="short", variant_count=1,
+        skill_rule_ids=[selected_rule.id],
+    )
+
+    assert selected_rule.name in captured["system_prompt"]
+    assert profile.rules[1].name not in captured["system_prompt"]
+
+
 def test_regenerate_variant_creates_new_version_and_retires_old(db_session, campaign_and_prospect, monkeypatch):
     campaign, prospect = campaign_and_prospect
     profile = skills_service.seed_default_profile(db_session)

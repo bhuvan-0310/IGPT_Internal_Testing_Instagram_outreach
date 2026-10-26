@@ -5,6 +5,16 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 def utcnow():
     return datetime.now(timezone.utc)
 
+
+CAMPAIGN_ACTION_LABELS = {
+    "follow_request": "Send follow request",
+    "message": "Send direct message",
+    "pdf": "Share PDF or catalogue",
+    "voice": "Share voice message",
+}
+DEFAULT_CAMPAIGN_ACTIONS = ["message"]
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -37,6 +47,7 @@ class Campaign(Base):
     audience: Mapped[str | None] = mapped_column(Text, nullable=True)
     objective: Mapped[str | None] = mapped_column(Text, nullable=True)
     message_preset: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    campaign_actions: Mapped[list[str]] = mapped_column(JSON, default=lambda: list(DEFAULT_CAMPAIGN_ACTIONS), nullable=False)
     status: Mapped[str] = mapped_column(String(40), default="Draft")
     start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

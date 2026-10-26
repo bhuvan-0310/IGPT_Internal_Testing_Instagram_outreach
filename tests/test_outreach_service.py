@@ -33,6 +33,32 @@ def test_record_event_converted_sets_converted_status(db_session, campaign_and_p
     assert prospect.status == "Converted"
 
 
+def test_completed_prospect_ids_returns_only_matching_campaign_actions(db_session, campaign_and_prospect):
+    campaign, prospect = campaign_and_prospect
+    other_campaign = Campaign(name="Other campaign", status="Active")
+    other_prospect = Prospect(username="alice", normalized_username="alice", status="New")
+    db_session.add_all([other_campaign, other_prospect])
+    db_session.flush()
+
+    outreach_service.record_event(
+        db_session, prospect, campaign.id,
+        contact_method="Instagram follow request", response_status="No response",
+    )
+    outreach_service.record_event(
+        db_session, other_prospect, other_campaign.id,
+        contact_method="Instagram follow request", response_status="No response",
+    )
+    outreach_service.record_event(
+        db_session, prospect, campaign.id,
+        contact_method="Other", response_status="No response",
+    )
+
+    completed = outreach_service.completed_prospect_ids(
+        db_session, campaign.id, ["Instagram follow request"]
+    )
+    assert completed == {prospect.id}
+
+
 def test_do_not_contact_blocks_recording_outreach(db_session, campaign_and_prospect):
     campaign, prospect = campaign_and_prospect
     outreach_service.set_do_not_contact(db_session, prospect, reason="Explicit opt-out")

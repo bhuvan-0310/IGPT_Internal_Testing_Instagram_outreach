@@ -1,8 +1,16 @@
 [server]
-maxUploadSize = 25
+maxUploadSize = 200
 # Keep this app local-only; do not expose it to the network by default.
 address = "localhost"
 headless = true
 
 [browser]
 gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#C13584"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F7FA"
+textColor = "#1A1A1A"
+font = "sans serif"

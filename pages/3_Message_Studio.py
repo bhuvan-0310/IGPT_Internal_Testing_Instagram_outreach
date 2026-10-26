@@ -13,30 +13,45 @@ page_header("Message Studio", "Draft, edit, regenerate, and review AI-assisted o
 
 with get_session() as session:
     skills_service.seed_default_profile(session)
+    skills_service.seed_marketing_course_profile(session)
     prospects = session.scalars(select(Prospect).order_by(Prospect.username)).all()
     campaigns = session.scalars(select(Campaign).order_by(Campaign.name)).all()
     profiles = skills_service.list_profiles(session)
     prospect_options = {f"@{p.username} (#{p.id}, {p.status})": p.id for p in prospects}
     campaign_options = {c.name: c.id for c in campaigns}
     profile_options = {p.name: p.id for p in profiles}
+    profile_skills = {
+        profile.id: [(rule.id, rule.name) for rule in profile.rules if rule.enabled]
+        for profile in profiles
+    }
 
 if not prospects or not campaigns:
     st.info("Import at least one prospect and create a campaign before drafting messages.")
     st.stop()
 
-with st.form("generate_form"):
-    c1, c2, c3 = st.columns(3)
-    prospect_label = c1.selectbox("Prospect", list(prospect_options.keys()))
-    campaign_label = c2.selectbox("Campaign", list(campaign_options.keys()))
-    profile_label = c3.selectbox("Skill profile", list(profile_options.keys()))
+c1, c2, c3 = st.columns(3)
+prospect_label = c1.selectbox("Prospect", list(prospect_options.keys()))
+campaign_label = c2.selectbox("Campaign", list(campaign_options.keys()))
+profile_label = c3.selectbox("Skill profile", list(profile_options.keys()))
+available_skills = profile_skills[profile_options[profile_label]]
 
-    c4, c5, c6, c7 = st.columns(4)
-    tone = c4.selectbox("Tone", ["friendly", "professional", "casual", "enthusiastic", "warm"])
-    language = c5.selectbox("Language", ["English", "Spanish", "Portuguese", "French", "Hindi", "German"])
-    length_preset = c6.selectbox("Length", ["short", "medium", "long"])
-    variant_count = c7.number_input("Variants", min_value=1, max_value=5, value=3)
+selected_skill_ids = st.multiselect(
+    "Skills to apply",
+    options=[rule_id for rule_id, _ in available_skills],
+    default=[rule_id for rule_id, _ in available_skills],
+    format_func=lambda rule_id: next(name for current_id, name in available_skills if current_id == rule_id),
+    help="Only the selected, enabled skills will be included in this draft's generation prompt.",
+)
+if not available_skills:
+    st.info("This skill profile has no enabled skills. Add or enable skills in Skill Matrix before generating a draft.")
 
-    submitted = st.form_submit_button("Generate draft variants", type="primary")
+c4, c5, c6, c7 = st.columns(4)
+tone = c4.selectbox("Tone", ["friendly", "professional", "casual", "enthusiastic", "warm", "marketing"])
+language = c5.selectbox("Language", ["English", "Spanish", "Portuguese", "French", "Hindi", "German"])
+length_preset = c6.selectbox("Length", ["short", "medium", "long"])
+variant_count = c7.number_input("Variants", min_value=1, max_value=5, value=3)
+
+submitted = st.button("Generate draft variants", type="primary", disabled=not selected_skill_ids)
 
 if submitted:
     prospect_id = prospect_options[prospect_label]
@@ -50,6 +65,7 @@ if submitted:
             drafts_service.generate_variants(
                 session, prospect, campaign, skill_profile,
                 tone=tone, language=language, length_preset=length_preset, variant_count=int(variant_count),
+                skill_rule_ids=selected_skill_ids,
             )
         st.success("Generated new draft variants below.")
     except OpenAINotConfigured as e:
